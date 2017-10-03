@@ -21,7 +21,7 @@ namespace Clustering
         {
             LabPixel pixel = new RGBPixel(R / ClusterSize, G / ClusterSize, B / ClusterSize).ToLabPixel();
 
-            Point center = new Point(X / ClusterSize, Y / ClusterSize);
+            PointF center = new PointF((float)X / ClusterSize, (float)Y / ClusterSize);
 
             return new ColorCluster(pixel, ClusterSize, center);
         }

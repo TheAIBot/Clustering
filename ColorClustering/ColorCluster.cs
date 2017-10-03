@@ -12,9 +12,9 @@ namespace Clustering
     {
         public readonly LabPixel ClusterColor;
         public readonly int ClusterSize = 0;
-        public readonly Point CenterPoint;
+        public readonly PointF CenterPoint;
 
-        public ColorCluster(LabPixel color, int size, Point center)
+        public ColorCluster(LabPixel color, int size, PointF center)
         {
             this.ClusterColor = color;
             this.ClusterSize = size;
