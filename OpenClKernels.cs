@@ -146,7 +146,7 @@ kernel void LabDistances(constant char* labPixels, global uchar* labDistances, i
         private const string RemoveNoise = @"
 int LabDistanceSum(global uchar* labDistances, int x, int y, int width, int height)
 {
-    int index = (max(min(y, height - 1), 0) * width + max(min(x, width - 1), 0)) * 4;
+    int index = (clamp(y, 0, height - 1) * width + clamp(x, 0, width - 1)) * 4;
     return convert_int(labDistances[index + 0]) + 
            convert_int(labDistances[index + 1]) + 
            convert_int(labDistances[index + 2]) + 
@@ -169,13 +169,11 @@ kernel void RemoveNoise(global uchar* labDistances, int width, int height)
             minCount = min(minCount, newPotentialMin);
         }
     }
-    
-    uchar sum = convert_uchar(minCount <= 1);
 
-    labDistances[index * 4 + 0] = (sum == 0) ? 1 : labDistances[index * 4 + 0];
-    labDistances[index * 4 + 1] = (sum == 0) ? 1 : labDistances[index * 4 + 1];
-    labDistances[index * 4 + 2] = (sum == 0) ? 1 : labDistances[index * 4 + 2];
-    labDistances[index * 4 + 3] = (sum == 0) ? 1 : labDistances[index * 4 + 3];
+    labDistances[index * 4 + 0] = (minCount <= 1) ? labDistances[index * 4 + 0] : 1;
+    labDistances[index * 4 + 1] = (minCount <= 1) ? labDistances[index * 4 + 1] : 1;
+    labDistances[index * 4 + 2] = (minCount <= 1) ? labDistances[index * 4 + 2] : 1;
+    labDistances[index * 4 + 3] = (minCount <= 1) ? labDistances[index * 4 + 3] : 1;
 }";
 
         public const string Kernel = RGBToLab + LabDistances + RemoveNoise;
