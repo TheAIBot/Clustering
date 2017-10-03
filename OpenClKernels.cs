@@ -100,6 +100,15 @@ float DistanceCIE94(float L1, float a1, float b1, float L2, float a2, float b2)
     return beforeReturn < 0 ? 0 : sqrt(beforeReturn);
 }
 
+uchar IsDistanceLessThan(float cL, float ca, float cb, constant char* labPixels, int index, float allowedDistance)
+{
+    float L = convert_float(labPixels[index + 0]);
+    float a = convert_float(labPixels[index + 1]);
+    float b = convert_float(labPixels[index + 2]);
+    float distance = DistanceCIE94(cL, ca, cb, L, a, b);
+    return distance <= allowedDistance;
+}
+
 kernel void LabDistances(constant char* labPixels, global uchar* labDistances, int bigWidth, int bigHeight, float allowedDistance)
 {
     int index = get_global_id(0);
@@ -115,32 +124,14 @@ kernel void LabDistances(constant char* labPixels, global uchar* labDistances, i
     float centerb = convert_float(labPixels[centerIndex + 2]);
 
     int topIndex = (max((y - 1), 0) * bigWidth + x) * 3;
-    float topL = convert_float(labPixels[topIndex + 0]);
-    float topa = convert_float(labPixels[topIndex + 1]);
-    float topb = convert_float(labPixels[topIndex + 2]);
-    float topDistance = DistanceCIE94(centerL, centera, centerb, topL, topa, topb);
-    labDistances[labDistancesIndex + 0] = topDistance <= allowedDistance;
-
     int leftIndex = (y * bigWidth + max((x - 1), 0)) * 3;
-    float leftL = convert_float(labPixels[leftIndex + 0]);
-    float lefta = convert_float(labPixels[leftIndex + 1]);
-    float leftb = convert_float(labPixels[leftIndex + 2]);
-    float leftDistance = DistanceCIE94(centerL, centera, centerb, leftL, lefta, leftb);
-    labDistances[labDistancesIndex + 1] = leftDistance <= allowedDistance;
-
     int rightIndex = (y * bigWidth + min((x + 1), bigWidth - 1)) * 3;
-    float rightL = convert_float(labPixels[rightIndex + 0]);
-    float righta = convert_float(labPixels[rightIndex + 1]);
-    float rightb = convert_float(labPixels[rightIndex + 2]);
-    float rightDistance = DistanceCIE94(centerL, centera, centerb, rightL, righta, rightb);
-    labDistances[labDistancesIndex + 2] = rightDistance <= allowedDistance;
-
     int bottomIndex = (min((y + 1), bigHeight - 1) * bigWidth + x) * 3;
-    float bottomL = convert_float(labPixels[bottomIndex + 0]);
-    float bottoma = convert_float(labPixels[bottomIndex + 1]);
-    float bottomb = convert_float(labPixels[bottomIndex + 2]);
-    float bottomDistance = DistanceCIE94(centerL, centera, centerb, bottomL, bottoma, bottomb);
-    labDistances[labDistancesIndex + 3] = bottomDistance <= allowedDistance;
+
+    labDistances[labDistancesIndex + 0] = IsDistanceLessThan(centerL, centera, centerb, labPixels, topIndex   , allowedDistance);
+    labDistances[labDistancesIndex + 1] = IsDistanceLessThan(centerL, centera, centerb, labPixels, leftIndex  , allowedDistance);
+    labDistances[labDistancesIndex + 2] = IsDistanceLessThan(centerL, centera, centerb, labPixels, rightIndex , allowedDistance);
+    labDistances[labDistancesIndex + 3] = IsDistanceLessThan(centerL, centera, centerb, labPixels, bottomIndex, allowedDistance);
 }";
 
         private const string RemoveNoise = @"
