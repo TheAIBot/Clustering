@@ -130,8 +130,6 @@ namespace Clustering
             InitClusterMapClusters(clusterIndexes, ref clusterCount);
             FinishClusterMap(clusterIndexes, ref clusterCount);
 
-            CreateClusters(clusterIndexes);
-
             FlattenClusterIndexes(clusterIndexes);
 
             //Now go through all clusters and replace merged clusters with the merged cluster number
@@ -139,6 +137,8 @@ namespace Clustering
             {
                 ClusterMap[i] = clusterIndexes[ClusterMap[i]];
             }
+
+            CreateClusters(clusterIndexes);
         }
 
         private void InitClusterMapClusters(List<int> clusterIndexes, ref int clusterCount)
@@ -246,7 +246,7 @@ namespace Clustering
             int[] clusterSize = new int[clusterIndexes.Count];
             for (int i = 0; i < ClusterMap.Length; i++)
             {
-                clusterSize[clusterIndexes[ClusterMap[i]]]++;
+                clusterSize[ClusterMap[i]]++;
             }
 
             const int MIN_CLUSTER_SIZE = 200;
@@ -264,7 +264,7 @@ namespace Clustering
                 for (int x = 0; x < ImageWidth; x++)
                 {
                     int clusterMapIndex = y * ImageWidth + x;
-                    int index = clusterIndexes[ClusterMap[clusterMapIndex]];
+                    int index = ClusterMap[clusterMapIndex];
                     if (bigClusters[index] != null)
                     {
                         ColorClusterInitData cluster = bigClusters[index];
