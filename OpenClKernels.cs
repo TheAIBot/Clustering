@@ -123,6 +123,8 @@ kernel void LabDistances(constant char* labPixels, global uchar* labDistances, i
     float centera = convert_float(labPixels[centerIndex + 1]);
     float centerb = convert_float(labPixels[centerIndex + 2]);
 
+    //MY GOD THESE INDEXES ARE UGLY
+    //But it works!
     int topIndex = (max((y - 1), 0) * bigWidth + x) * 3;
     int leftIndex = (y * bigWidth + max((x - 1), 0)) * 3;
     int rightIndex = (y * bigWidth + min((x + 1), bigWidth - 1)) * 3;
@@ -147,24 +149,27 @@ int LabDistanceSum(global uchar* labDistances, int x, int y, int width, int heig
 kernel void RemoveNoise(global uchar* labDistances, int width, int height)
 {
     int index = get_global_id(0);
-
     int centerX = index % width;
     int centerY = index / width;
-    
-    int minCount = 10000;
-    for(int yOffset = -4; yOffset <= 4; yOffset++)
+    const int RANGE = 4;
+    const float MAX_SUM = convert_float((RANGE * 2 + 1) * (RANGE * 2 + 1) * 4);
+    const float MIN_PERCENT = 0.8f;
+    const int MIN_NOISE = convert_int(MAX_SUM * MIN_PERCENT);
+
+    int sum = 0;
+    for(int yOffset = -RANGE; yOffset <= RANGE; yOffset++)
     {
-        for(int xOffset = -4; xOffset <= 4; xOffset++)
+        for(int xOffset = -RANGE; xOffset <= RANGE; xOffset++)
         {
-            int newPotentialMin = LabDistanceSum(labDistances, centerX + xOffset, centerY + yOffset, width, height);
-            minCount = min(minCount, newPotentialMin);
+            sum += LabDistanceSum(labDistances, centerX + xOffset, centerY + yOffset, width, height);
         }
     }
-
-    labDistances[index * 4 + 0] = (minCount <= 1) ? labDistances[index * 4 + 0] : 1;
-    labDistances[index * 4 + 1] = (minCount <= 1) ? labDistances[index * 4 + 1] : 1;
-    labDistances[index * 4 + 2] = (minCount <= 1) ? labDistances[index * 4 + 2] : 1;
-    labDistances[index * 4 + 3] = (minCount <= 1) ? labDistances[index * 4 + 3] : 1;
+    
+    float percentEqual = convert_float(sum) / MAX_SUM;
+    labDistances[index * 4 + 0] = (sum > MIN_NOISE) ? 1 : labDistances[index * 4 + 0];
+    labDistances[index * 4 + 1] = (sum > MIN_NOISE) ? 1 : labDistances[index * 4 + 1];
+    labDistances[index * 4 + 2] = (sum > MIN_NOISE) ? 1 : labDistances[index * 4 + 2];
+    labDistances[index * 4 + 3] = (sum > MIN_NOISE) ? 1 : labDistances[index * 4 + 3];
 }";
 
         public const string Kernel = RGBToLab + LabDistances + RemoveNoise;
