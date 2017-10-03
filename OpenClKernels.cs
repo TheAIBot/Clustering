@@ -159,23 +159,27 @@ kernel void RemoveNoise(global uchar* labDistances, int width, int height)
 
     int centerX = index % width;
     int centerY = index / width;
+
+    const int RANGE = 4;
+    const float MAX_SUM = convert_float((RANGE * 2 + 1) * (RANGE * 2 + 1) * 4);
     
-    int minCount = 10000;
-    for(int yOffset = -4; yOffset <= 4; yOffset++)
+    int sum = 0;
+    for(int yOffset = -RANGE; yOffset <= RANGE; yOffset++)
     {
-        for(int xOffset = -4; xOffset <= 4; xOffset++)
+        for(int xOffset = -RANGE; xOffset <= RANGE; xOffset++)
         {
-            int newPotentialMin = LabDistanceSum(labDistances, centerX + xOffset, centerY + yOffset, width, height);
-            minCount = min(minCount, newPotentialMin);
+            sum += LabDistanceSum(labDistances, centerX + xOffset, centerY + yOffset, width, height);
         }
     }
-    
-    uchar sum = convert_uchar(minCount <= 1);
 
-    labDistances[index * 4 + 0] = (sum == 0) ? 1 : labDistances[index * 4 + 0];
-    labDistances[index * 4 + 1] = (sum == 0) ? 1 : labDistances[index * 4 + 1];
-    labDistances[index * 4 + 2] = (sum == 0) ? 1 : labDistances[index * 4 + 2];
-    labDistances[index * 4 + 3] = (sum == 0) ? 1 : labDistances[index * 4 + 3];
+    const float MIN_PERCENT = 0.8f;
+
+    float percentEqual = convert_float(sum) / MAX_SUM;
+
+    labDistances[index * 4 + 0] = (percentEqual > MIN_PERCENT) ? 1 : labDistances[index * 4 + 0];
+    labDistances[index * 4 + 1] = (percentEqual > MIN_PERCENT) ? 1 : labDistances[index * 4 + 1];
+    labDistances[index * 4 + 2] = (percentEqual > MIN_PERCENT) ? 1 : labDistances[index * 4 + 2];
+    labDistances[index * 4 + 3] = (percentEqual > MIN_PERCENT) ? 1 : labDistances[index * 4 + 3];
 }";
 
         public const string Kernel = RGBToLab + LabDistances + RemoveNoise;
