@@ -13,8 +13,9 @@ namespace Clustering
     public class ColorClusterCreator
     {
         public List<ColorCluster> clusters;
-        private ClusterViewTypes ViewType;
         private float MaxColorDistanceForMatch = 3;
+        private ClusterViewTypes ViewType;
+        private bool UseNoiseRemoval = true;
         private readonly Object Locker = new object();
 
         private readonly byte[] colors;
@@ -108,8 +109,10 @@ namespace Clustering
 
             gpuAccel.Invoke("RGBToLab", 0, LabPixels.Length / 3, RGBPixels, LabPixels, 255f);
             gpuAccel.Invoke("LabDistances", 0, ImageWidth * ImageHeight, LabPixels, LabDistances, ImageWidth, ImageHeight, MaxColorDistanceForMatch);
-            //kernel void RemoveNoise(global uchar* labDistances, int width, int height);
-            gpuAccel.Invoke("RemoveNoise", 0, ImageWidth * ImageHeight, LabDistances, ImageWidth, ImageHeight);
+            if (UseNoiseRemoval)
+            {
+                gpuAccel.Invoke("RemoveNoise", 0, ImageWidth * ImageHeight, LabDistances, ImageWidth, ImageHeight);
+            }
         }
 
         private void CreateClusterMap()
@@ -391,6 +394,11 @@ namespace Clustering
             {
                 ViewType = viewType;
             }
+        }
+
+        public void SetUseNouseRemoval(Boolean shouldUse)
+        {
+            UseNoiseRemoval = shouldUse;
         }
 
         public int[] GetClusterMap()
