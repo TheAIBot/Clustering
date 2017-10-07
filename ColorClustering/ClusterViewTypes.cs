@@ -9,6 +9,7 @@ namespace Clustering
     public enum ClusterViewTypes
     {
         Clusters = 0,
-        PixelDistances = 1
+        PixelDistances = 1,
+        Image = 2
     }
 }

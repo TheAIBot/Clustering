@@ -130,6 +130,7 @@ namespace Clustering
             InitClusterMapClusters(clusterIndexes, ref clusterCount);
             FinishClusterMap(clusterIndexes, ref clusterCount);
 
+            //Don't know why but this is still required
             FlattenClusterIndexes(clusterIndexes);
 
             //Now go through all clusters and replace merged clusters with the merged cluster number
@@ -339,10 +340,12 @@ namespace Clustering
                             pixelPtr[1] = value;
                             pixelPtr[2] = value;
                         }
-
-
-
-
+                        else if (ViewType == ClusterViewTypes.Image)
+                        {
+                            pixelPtr[(int)RGBAColor.Red] = RGBPixels[pixelIndex * 3 + 0];
+                            pixelPtr[(int)RGBAColor.Green] = RGBPixels[pixelIndex * 3 + 1];
+                            pixelPtr[(int)RGBAColor.Blue] = RGBPixels[pixelIndex * 3 + 2];
+                        }
 
                         pixelIndex++;
                         pixelPtr += 3;
