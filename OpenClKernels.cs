@@ -154,7 +154,7 @@ kernel void RemoveNoise(global uchar* labDistances, const int width, const int h
 
     const int RANGE = 4;
     const float MAX_SUM = convert_float((RANGE * 2 + 1) * (RANGE * 2 + 1) * 4);
-    const float MIN_PERCENT = 0.8f;
+    const float MIN_PERCENT = 0.9f;
     const int MIN_NOISE = convert_int(MAX_SUM * MIN_PERCENT);
 
     int sum = 0;
@@ -172,6 +172,90 @@ kernel void RemoveNoise(global uchar* labDistances, const int width, const int h
     labDistances[index * 4 + 3] = (sum > MIN_NOISE) ? 1 : labDistances[index * 4 + 3];
 }";
 
-        public const string Kernel = RGBToLab + LabDistances + RemoveNoise;
+        public const string EdgeDetector = @"
+kernel void DetectEdges(global uchar* labDistances, const int width, const int height)
+{
+    const int index = get_global_id(0);
+}";
+
+        public const string GaussianBlur = @"
+constant int GAUSS_RADIUS = 3;
+constant int GAUSS_WIDTH = 7;
+constant float GAUSS_VALUES[] = 
+{
+    0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f, 
+    0.00002292f, 0.00078634f, 0.00655965f, 0.01330373f, 0.00655965f, 0.00078633f, 0.00002292f, 
+    0.00019117f, 0.00655965f, 0.05472157f, 0.11098164f, 0.05472157f, 0.00655965f, 0.00019117f, 
+    0.00038771f, 0.01330373f, 0.11098164f, 0.22508352f, 0.11098164f, 0.01330373f, 0.00038771f, 
+    0.00019117f, 0.00655965f, 0.05472157f, 0.11098164f, 0.05472157f, 0.00655965f, 0.00019117f, 
+    0.00002292f, 0.00078633f, 0.00655965f, 0.01330373f, 0.00655965f, 0.00078633f, 0.00002292f, 
+    0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f
+};
+
+kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels, const int width, const int height)
+{
+    const int index = get_global_id(0);
+    const int x = (index % width);
+    const int y = (index / width);
+
+    float redSum   = 0;
+    float greenSum = 0;
+    float blueSum  = 0;
+    for(int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
+    {
+        for(int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
+        {
+            const int rangedX = clamp(x + xOffset, 0, width  - 1);
+            const int rangedY = clamp(y + yOffset, 0, height - 1);
+            const int pixelIndex = (rangedY * width + rangedX) * 3;
+    
+            const float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
+    
+            redSum   += convert_float(pixels[pixelIndex + 0]) * weight;
+            greenSum += convert_float(pixels[pixelIndex + 1]) * weight;
+            blueSum  += convert_float(pixels[pixelIndex + 2]) * weight;
+        }
+    }
+
+    GAUSSPixels[index * 3 + 0] = redSum;
+    GAUSSPixels[index * 3 + 1] = greenSum;
+    GAUSSPixels[index * 3 + 2] = blueSum;
+}
+
+kernel void EndGaussianBlur(global uchar* pixels, constant float* GAUSSPixels, const int width, const int height)
+{
+    const int index = get_global_id(0);
+    const int x = (index % width);
+    const int y = (index / width);
+
+    float redSum   = 0;
+    float greenSum = 0;
+    float blueSum  = 0;
+    for(int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
+    {
+        for(int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
+        {
+            const int rangedX = clamp(x + xOffset, 0, width  - 1);
+            const int rangedY = clamp(y + yOffset, 0, height - 1);
+            const int pixelIndex = (rangedY * width + rangedX) * 3;
+    
+            const float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
+    
+            redSum   += convert_float(pixels[pixelIndex + 0]) * weight;
+            greenSum += convert_float(pixels[pixelIndex + 1]) * weight;
+            blueSum  += convert_float(pixels[pixelIndex + 2]) * weight;
+        }
+    }
+
+    const float totalRed   = GAUSSPixels[index * 3 + 0] + redSum;
+    const float totalGreen = GAUSSPixels[index * 3 + 1] + greenSum;
+    const float totalBlue  = GAUSSPixels[index * 3 + 2] + blueSum;
+
+    pixels[index * 3 + 0] = convert_uchar(totalRed   / 2);
+    pixels[index * 3 + 1] = convert_uchar(totalGreen / 2);
+    pixels[index * 3 + 2] = convert_uchar(totalBlue  / 2);
+}";
+
+        public const string Kernel = RGBToLab + LabDistances + RemoveNoise/* + EdgeDetector*/ + GaussianBlur;
     }
 }
