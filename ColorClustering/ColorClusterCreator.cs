@@ -16,6 +16,7 @@ namespace Clustering
         private float MaxColorDistanceForMatch = 3;
         private ClusterViewTypes ViewType;
         private bool UseNoiseRemoval = true;
+        private bool UseGaussBlur = true;
         private readonly Object Locker = new object();
 
         private readonly byte[] colors;
@@ -109,104 +110,17 @@ namespace Clustering
             }
             image.UnlockBits(originalBitmapData);
 
-            gpuAccel.Invoke("StartGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
-            gpuAccel.Invoke("EndGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
-            //for (int i = 0; i < ImageWidth * ImageHeight; i++)
-            //{
-            //    StartGaussianBlur(RGBPixels, GAUSSWeights, ImageWidth, ImageHeight, i);
-            //}
-            //for (int i = 0; i < ImageWidth * ImageHeight; i++)
-            //{
-            //    EndGaussianBlur(RGBPixels, GAUSSWeights, ImageWidth, ImageHeight, i);
-            //}
+            if (UseGaussBlur)
+            {
+                gpuAccel.Invoke("StartGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
+                gpuAccel.Invoke("EndGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
+            }
             gpuAccel.Invoke("RGBToLab", 0, LabPixels.Length / 3, RGBPixels, LabPixels, 255f);
             gpuAccel.Invoke("LabDistances", 0, ImageWidth * ImageHeight, LabPixels, LabDistances, ImageWidth, ImageHeight, MaxColorDistanceForMatch);
             if (UseNoiseRemoval)
             {
                 gpuAccel.Invoke("RemoveNoise", 0, ImageWidth * ImageHeight, LabDistances, ImageWidth, ImageHeight);
             }
-        }
-
-        const int GAUSS_RADIUS = 3;
-        const int GAUSS_WIDTH = 7;
-        float[] GAUSS_VALUES = new float[]
-        {
-            0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f,
-            0.00002292f, 0.00078634f, 0.00655965f, 0.01330373f, 0.00655965f, 0.00078633f, 0.00002292f,
-            0.00019117f, 0.00655965f, 0.05472157f, 0.11098164f, 0.05472157f, 0.00655965f, 0.00019117f,
-            0.00038771f, 0.01330373f, 0.11098164f, 0.22508352f, 0.11098164f, 0.01330373f, 0.00038771f,
-            0.00019117f, 0.00655965f, 0.05472157f, 0.11098164f, 0.05472157f, 0.00655965f, 0.00019117f,
-            0.00002292f, 0.00078633f, 0.00655965f, 0.01330373f, 0.00655965f, 0.00078633f, 0.00002292f,
-            0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f
-        };
-
-        void StartGaussianBlur(byte[] pixels, float[] GAUSSPixels, int width, int height, int index)
-        {
-            int x = (index % width);
-            int y = (index / width);
-
-            float redSum = 0;
-            float greenSum = 0;
-            float blueSum = 0;
-            for (int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
-            {
-                for (int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
-                {
-                    int rangedX = Math.Min(Math.Max(x + xOffset, 0), width - 1);
-                    int rangedY = Math.Min(Math.Max(y + yOffset, 0), height - 1);
-                    int pixelIndex = (rangedY * width + rangedX) * 3;
-
-                    float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
-
-                    redSum += pixels[pixelIndex + 0] * weight;
-                    greenSum += pixels[pixelIndex + 1] * weight;
-                    blueSum += pixels[pixelIndex + 2] * weight;
-                }
-            }
-
-            GAUSSPixels[index * 3 + 0] = redSum;
-            GAUSSPixels[index * 3 + 1] = greenSum;
-            GAUSSPixels[index * 3 + 2] = blueSum;
-        }
-
-        void EndGaussianBlur(byte[] pixels, float[] GAUSSPixels, int width, int height, int index)
-        {
-            int x = (index % width);
-            int y = (index / width);
-
-            float redSum = 0;
-            float greenSum = 0;
-            float blueSum = 0;
-            for (int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
-            {
-                for (int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
-                {
-                    int rangedX = Math.Min(Math.Max(x + xOffset, 0), width - 1);
-                    int rangedY = Math.Min(Math.Max(y + yOffset, 0), height - 1);
-                    int pixelIndex = (rangedY * width + rangedX) * 3;
-
-                    float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
-
-                    redSum += pixels[pixelIndex + 0] * weight;
-                    greenSum += pixels[pixelIndex + 1] * weight;
-                    blueSum += pixels[pixelIndex + 2] * weight;
-                }
-            }
-
-            float totalRed = GAUSSPixels[index * 3 + 0] + redSum;
-            float totalGreen = GAUSSPixels[index * 3 + 1] + greenSum;
-            float totalBlue = GAUSSPixels[index * 3 + 2] + blueSum;
-
-            if (totalRed > byte.MaxValue * 2 ||
-                totalGreen > byte.MaxValue * 2 ||
-                totalBlue > byte.MaxValue * 2)
-            {
-
-            }
-
-            pixels[index * 3 + 0] = (byte)(totalRed / 2);
-            pixels[index * 3 + 1] = (byte)(totalGreen / 2);
-            pixels[index * 3 + 2] = (byte)(totalBlue / 2);
         }
 
 private void CreateClusterMap()
@@ -499,9 +413,14 @@ private void CreateClusterMap()
             }
         }
 
-        public void SetUseNoiseRemoval(Boolean shouldUse)
+        public void SetUseNoiseRemoval(bool shouldUse)
         {
             UseNoiseRemoval = shouldUse;
+        }
+
+        public void SetUseGaussBlur(bool shouldUse)
+        {
+            UseGaussBlur = shouldUse;
         }
 
         public int[] GetClusterMap()
