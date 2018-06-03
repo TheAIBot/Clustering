@@ -29,7 +29,7 @@ namespace Clustering
         private readonly int[] ClusterMap;
         private readonly Bitmap clusterImage;
         private readonly EasyCL gpuAccel;
-        
+
         private const int TOP_DISTANCE_INDEX = 0;
         private const int LEFT_DISTANCE_INDEX = 1;
         private const int RIGHT_DISTANCE_INDEX = 2;
@@ -123,7 +123,7 @@ namespace Clustering
             }
         }
 
-private void CreateClusterMap()
+        private void CreateClusterMap()
         {
             List<int> clusterIndexes = new List<int>();
             int clusterCount = 0;
@@ -198,7 +198,7 @@ private void CreateClusterMap()
                     int topPixelIndex = currentPixelIndex - ImageWidth;
                     int leftPixelIndex = currentPixelIndex - 1;
 
-                    int isSimilarToTopPixel  = LabDistances[currentPixelIndex * 4 + TOP_DISTANCE_INDEX] * 1;
+                    int isSimilarToTopPixel = LabDistances[currentPixelIndex * 4 + TOP_DISTANCE_INDEX] * 1;
                     int isSimilarToLeftPixel = LabDistances[currentPixelIndex * 4 + LEFT_DISTANCE_INDEX] * 2;
                     int matchingPixels = isSimilarToTopPixel + isSimilarToLeftPixel;
 
@@ -285,6 +285,11 @@ private void CreateClusterMap()
                         cluster.X += x;
                         cluster.Y += y;
 
+                        cluster.MinX = Math.Min(cluster.MinX, x);
+                        cluster.MaxX = Math.Max(cluster.MaxX, x);
+                        cluster.MinY = Math.Min(cluster.MinY, y);
+                        cluster.MaxY = Math.Max(cluster.MaxY, y);
+
                         cluster.ClusterSize++;
                     }
                 }
@@ -335,7 +340,7 @@ private void CreateClusterMap()
                             pixelPtr[1] = colors[colorIndex + 1];
                             pixelPtr[2] = colors[colorIndex + 2];
                         }
-                        else if(ViewType == ClusterViewTypes.PixelDistances)
+                        else if (ViewType == ClusterViewTypes.PixelDistances)
                         {
                             byte d1 = LabDistances[pixelIndex * 4 + 0];
                             byte d2 = LabDistances[pixelIndex * 4 + 1];
@@ -366,13 +371,13 @@ private void CreateClusterMap()
 
             return clusterImage;
         }
-        
+
         public List<ColorCluster> GetClustersSortedByMostRed()
         {
             LabPixel redPixel = new RGBPixel(255, 0, 0).ToLabPixel();
             return clusters.OrderBy(x => redPixel.DistanceCIE94IgnoreIllumination(x.ClusterColor)).ToList();
         }
-        
+
         public List<ColorCluster> GetClustersSortedByMostGreen()
         {
             LabPixel greenPixel = new RGBPixel(0, 255, 0).ToLabPixel();
@@ -395,6 +400,28 @@ private void CreateClusterMap()
         {
             LabPixel whitePixel = new RGBPixel(255, 255, 255).ToLabPixel();
             return clusters.OrderBy(x => whitePixel.DistanceCIE94IgnoreIllumination(x.ClusterColor)).ToList();
+        }
+
+        public List<ColorCluster> GetPureClusters()
+        {
+            return clusters.Where(x => x.IsPure(clusters)).ToList();
+        }
+
+        public List<ColorCluster> GetClustersSortedBySimilarityToCircle()
+        {
+            List<ColorCluster> pureClusters = GetPureClusters();
+            foreach (ColorCluster pureCluster in pureClusters)
+            {
+                for (int y = pureCluster.TopLeftPoint.Y; y <= pureCluster.BottomRightPoint.Y; y++)
+                {
+                    for (int x = pureCluster.TopLeftPoint.X; x <= pureCluster.BottomRightPoint.X; x++)
+                    {
+
+                    }
+                }
+            }
+
+            return null;
         }
 
         public void SetColorDistance(float distance)
