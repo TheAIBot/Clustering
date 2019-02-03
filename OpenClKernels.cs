@@ -192,7 +192,7 @@ constant float GAUSS_VALUES[] =
     0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f
 };
 
-kernel void StartGaussianBlur(constant char* pixels, global float* GAUSSPixels, const int width, const int height)
+kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels, const int width, const int height)
 {
     const int index = get_global_id(0);
     const int x = (index % width);
