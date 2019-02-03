@@ -192,7 +192,7 @@ constant float GAUSS_VALUES[] =
     0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f
 };
 
-kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels, const int width, const int height)
+kernel void StartGaussianBlur(constant char* pixels, global float* GAUSSPixels, const int width, const int height)
 {
     const int index = get_global_id(0);
     const int x = (index % width);
@@ -256,6 +256,58 @@ kernel void EndGaussianBlur(global uchar* pixels, constant float* GAUSSPixels, c
     pixels[index * 3 + 2] = convert_uchar(totalBlue  / 2);
 }";
 
-        public const string Kernel = RGBToLab + LabDistances + RemoveNoise/* + EdgeDetector*/ + GaussianBlur;
+        public const string ClusterDetector = @"
+
+int BestCluster(const int x, const int y, const int width, constant char* labDistances)
+{
+    const int topIndex    = (x + 0) + (y - 1) * width;
+    const int bottomIndex = (x + 0) + (y + 1) * width;
+    const int leftIndex   = (x - 1) + (y + 0) * width;
+    const int rightIndex  = (x + 1) + (y + 0) * width;
+
+    const int topDistance    = convert_int(labDistances[topIndex]);
+    const int bottomDistance = convert_int(labDistances[bottomIndex]);
+    const int leftDistance   = convert_int(labDistances[leftIndex]);
+    const int rightDistance  = convert_int(labDistances[rightIndex]);
+
+    const int topCluster    = clusterMap[topIndex];
+    const int bottomCluster = clusterMap[bottomIndex];
+    const int leftCluster   = clusterMap[leftIndex];
+    const int rightCluster  = clusterMap[rightIndex];
+
+    const int topResult    = topDistance    * topCluster;
+    const int bottomResult = bottomDistance * bottomCluster;
+    const int leftResult   = leftDistance   * leftCluster;
+    const int rightResult  = rightDistance  * rightCluster;
+
+    return min(topResult, min(bottomResult, min(leftResult, rightResult)))
+}
+
+kernel void ClusterDetector(constant char* labDistances, global int* clusterMap, const int width, const int height, const int boxWidth, const int boxHeight)
+{
+    const int index = get_global_id(0);
+    const int correctedIndex = index * (boxWidth * boxHeight);
+    const int correctWidth = width - 2;
+    const int x = (correctedIndex % correctWidth) + 1;
+    const int y = (correctedIndex / correctWidth) + 1;
+
+    for(int dx = 0; dx < boxWidth; dx++)
+    {
+        for(int dy = 0; dy < boxHeight; dy++)
+        {
+            clusterMap[(x + dx) + (y + dy) * correctWidth] = BestCluster(x + dx ,y + dy, correctWidth, labDistances);
+        }
+    }
+
+    for(int dx = boxWidth - 1; dx >= 0; dx--)
+    {
+        for(int dy = boxHeight - 1; dy >= 0; dy--)
+        {
+            clusterMap[(x + dx) + (y + dy) * correctWidth] = BestCluster(x + dx ,y + dy, correctWidth, labDistances);
+        }
+    }
+}";
+
+        public const string Kernel = RGBToLab + LabDistances + RemoveNoise/* + EdgeDetector*/ + GaussianBlur;// + ClusterDetector;
     }
 }
