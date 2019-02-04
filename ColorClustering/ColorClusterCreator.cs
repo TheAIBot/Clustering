@@ -22,8 +22,8 @@ namespace Clustering
         private readonly byte[] colors;
         private readonly int ImageWidth;
         private readonly int ImageHeight;
-        private readonly byte[] RGBPixels;
-        private readonly float[] GAUSSWeights;
+        private byte[] RGBPixels;
+        private byte[] GaussedRGBPixels;
         private readonly sbyte[] LabPixels;
         private readonly byte[] LabDistances;
         private readonly int[] ClusterMap;
@@ -50,7 +50,7 @@ namespace Clustering
             this.ImageWidth = width;
             this.ImageHeight = height;
             this.RGBPixels = new byte[ImageWidth * ImageHeight * 3];
-            this.GAUSSWeights = new float[ImageWidth * ImageHeight * 3];
+            this.GaussedRGBPixels = new byte[RGBPixels.Length];
             this.LabPixels = new sbyte[ImageWidth * ImageHeight * 3];
             this.LabDistances = new byte[ImageWidth * ImageHeight * 4];
             this.ClusterMap = new int[ImageWidth * ImageHeight];
@@ -112,8 +112,10 @@ namespace Clustering
 
             if (UseGaussBlur)
             {
-                gpuAccel.Invoke("StartGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
-                gpuAccel.Invoke("EndGaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GAUSSWeights, ImageWidth, ImageHeight);
+                gpuAccel.Invoke("GaussianBlur", 0, ImageWidth * ImageHeight, RGBPixels, GaussedRGBPixels, ImageWidth, ImageHeight);
+                var t = RGBPixels;
+                RGBPixels = GaussedRGBPixels;
+                GaussedRGBPixels = t;
             }
             gpuAccel.Invoke("RGBToLab", 0, LabPixels.Length / 3, RGBPixels, LabPixels, 255f);
             gpuAccel.Invoke("LabDistances", 0, ImageWidth * ImageHeight, LabPixels, LabDistances, ImageWidth, ImageHeight, MaxColorDistanceForMatch);

@@ -192,7 +192,7 @@ constant float GAUSS_VALUES[] =
     0.00000067f, 0.00002292f, 0.00019117f, 0.00038771f, 0.00019117f, 0.00002292f, 0.00000067f
 };
 
-kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels, const int width, const int height)
+kernel void GaussianBlur(constant uchar* pixels, global uchar* gaussedPixels, const int width, const int height)
 {
     const int index = get_global_id(0);
     const int x = (index % width);
@@ -201,15 +201,15 @@ kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels,
     float redSum   = 0;
     float greenSum = 0;
     float blueSum  = 0;
-    for(int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
+    for(int yOffset = 0; yOffset < GAUSS_WIDTH; yOffset++)
     {
-        for(int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
+        for(int xOffset = 0; xOffset < GAUSS_WIDTH; xOffset++)
         {
-            const int rangedX = clamp(x + xOffset, 0, width  - 1);
-            const int rangedY = clamp(y + yOffset, 0, height - 1);
+            const int rangedX = clamp(x + xOffset - GAUSS_RADIUS, 0, width  - 1);
+            const int rangedY = clamp(y + yOffset - GAUSS_RADIUS, 0, height - 1);
             const int pixelIndex = (rangedY * width + rangedX) * 3;
     
-            const float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
+            const float weight = GAUSS_VALUES[yOffset * GAUSS_WIDTH + xOffset];
     
             redSum   += convert_float(pixels[pixelIndex + 0]) * weight;
             greenSum += convert_float(pixels[pixelIndex + 1]) * weight;
@@ -217,43 +217,9 @@ kernel void StartGaussianBlur(constant uchar* pixels, global float* GAUSSPixels,
         }
     }
 
-    GAUSSPixels[index * 3 + 0] = redSum;
-    GAUSSPixels[index * 3 + 1] = greenSum;
-    GAUSSPixels[index * 3 + 2] = blueSum;
-}
-
-kernel void EndGaussianBlur(global uchar* pixels, constant float* GAUSSPixels, const int width, const int height)
-{
-    const int index = get_global_id(0);
-    const int x = (index % width);
-    const int y = (index / width);
-
-    float redSum   = 0;
-    float greenSum = 0;
-    float blueSum  = 0;
-    for(int xOffset = -GAUSS_RADIUS; xOffset <= GAUSS_RADIUS; xOffset++)
-    {
-        for(int yOffset = -GAUSS_RADIUS; yOffset <= GAUSS_RADIUS; yOffset++)
-        {
-            const int rangedX = clamp(x + xOffset, 0, width  - 1);
-            const int rangedY = clamp(y + yOffset, 0, height - 1);
-            const int pixelIndex = (rangedY * width + rangedX) * 3;
-    
-            const float weight = GAUSS_VALUES[(yOffset + GAUSS_RADIUS) * GAUSS_WIDTH + (xOffset + GAUSS_RADIUS)];
-    
-            redSum   += convert_float(pixels[pixelIndex + 0]) * weight;
-            greenSum += convert_float(pixels[pixelIndex + 1]) * weight;
-            blueSum  += convert_float(pixels[pixelIndex + 2]) * weight;
-        }
-    }
-
-    const float totalRed   = GAUSSPixels[index * 3 + 0] + redSum;
-    const float totalGreen = GAUSSPixels[index * 3 + 1] + greenSum;
-    const float totalBlue  = GAUSSPixels[index * 3 + 2] + blueSum;
-
-    pixels[index * 3 + 0] = convert_uchar(totalRed   / 2);
-    pixels[index * 3 + 1] = convert_uchar(totalGreen / 2);
-    pixels[index * 3 + 2] = convert_uchar(totalBlue  / 2);
+    gaussedPixels[index * 3 + 0] = convert_uchar(redSum);
+    gaussedPixels[index * 3 + 1] = convert_uchar(greenSum);
+    gaussedPixels[index * 3 + 2] = convert_uchar(blueSum);
 }";
 
         public const string ClusterDetector = @"
